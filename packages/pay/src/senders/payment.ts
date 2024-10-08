@@ -105,8 +105,8 @@ export class PaymentSender extends StreamSender<PaymentProgress> {
   }
 
   nextState(request: RequestBuilder): SendState<PaymentProgress> {
-    const timerNextState = this.startTimer('payment_next_state_time_ms', {
-      description: 'Time to perform ',
+    const timerNextState = this.startTimer('interledgerjs_payment_next_state_time_ms', {
+      description: 'Time to perform the next state operations.',
     })
 
     try {
