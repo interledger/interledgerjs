@@ -72,43 +72,50 @@ export abstract class StreamSender<T> {
   }
 
   private trySending(): SendState<T> {
-    const request = new RequestBuilder({ log: this.log })
-    const requestState = [...this.controllers.values()].reduce<RequestState>(
-      (state, controller) =>
-        state.type === SendStateType.Ready ? controller.buildRequest?.(request) ?? state : state,
-      RequestState.Ready()
-    )
-    if (requestState.type !== SendStateType.Ready) {
-      return requestState // Cancel this attempt
-    }
-
-    // If committing and sending this request, continue
-    const state = this.nextState(request)
-    if (state.type !== SendStateType.Send) {
-      return state // Cancel this attempt
-    }
-
-    // Synchronously apply the request
-    const replyHandlers = this.controllers.map((c) => c.applyRequest?.(request))
-    // Asynchronously send the request and queue the reply side effects as another task
-    const task = this.sendRequest(request).then((reply) => () => {
-      // Apply side effects from all controllers and StreamSender, then return the first error or next state
-      // (For example, even if a payment error occurs in a controller, it shouldn't return
-      //  immediately since that packet still needs to be correctly accounted for)
-      const error = replyHandlers.map((apply) => apply?.(reply)).find(isPaymentError)
-      const newState = state.applyReply(reply)
-      return error ? SendState.Error(error) : newState
+    const timerSending = this.startTimer('interledgerjs_strictly_sending_time_ms', {
+      description: 'Time to perform sending only.',
     })
-    const counterForTps = this.getOrCreateCounter('interledgerjs_sender_total', undefined)
-    if (counterForTps) {
-      counterForTps.add(1, {
-        source: this.SOURCE,
-        description: 'Count of ILP packets sent through sender.',
-      })
-    }
-    this.replyScheduler.queue(task)
+    try {
+      const request = new RequestBuilder({ log: this.log })
+      const requestState = [...this.controllers.values()].reduce<RequestState>(
+        (state, controller) =>
+          state.type === SendStateType.Ready ? controller.buildRequest?.(request) ?? state : state,
+        RequestState.Ready()
+      )
+      if (requestState.type !== SendStateType.Ready) {
+        return requestState // Cancel this attempt
+      }
 
-    return SendState.Schedule() // Schedule another attempt immediately
+      // If committing and sending this request, continue
+      const state = this.nextState(request)
+      if (state.type !== SendStateType.Send) {
+        return state // Cancel this attempt
+      }
+
+      // Synchronously apply the request
+      const replyHandlers = this.controllers.map((c) => c.applyRequest?.(request))
+      // Asynchronously send the request and queue the reply side effects as another task
+      const task = this.sendRequest(request).then((reply) => () => {
+        // Apply side effects from all controllers and StreamSender, then return the first error or next state
+        // (For example, even if a payment error occurs in a controller, it shouldn't return
+        //  immediately since that packet still needs to be correctly accounted for)
+        const error = replyHandlers.map((apply) => apply?.(reply)).find(isPaymentError)
+        const newState = state.applyReply(reply)
+        return error ? SendState.Error(error) : newState
+      })
+      const counterForTps = this.getOrCreateCounter('interledgerjs_sender_total', undefined)
+      if (counterForTps) {
+        counterForTps.add(1, {
+          source: this.SOURCE,
+          description: 'Count of ILP packets sent through sender.',
+        })
+      }
+      this.replyScheduler.queue(task)
+
+      return SendState.Schedule() // Schedule another attempt immediately
+    } finally {
+      timerSending && timerSending()
+    }
   }
 
   protected getOrCreateCounter(name: string, options?: MetricOptions): Counter | undefined {
