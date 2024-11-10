@@ -105,7 +105,8 @@ export class PaymentSender extends StreamSender<PaymentProgress> {
   }
 
   nextState(request: RequestBuilder): SendState<PaymentProgress> {
-    const timerNextState = this.startTimer('interledgerjs_payment_next_state_time_ms', {
+    //const timerNextState = this.startTimer('interledgerjs_payment_next_state_time_ms', {
+    const timerNextState = this.startTimer('InterledgerJS:Pay:nextState', {
       description: 'Time to perform the next state operations.',
     })
 
@@ -242,7 +243,7 @@ export class PaymentSender extends StreamSender<PaymentProgress> {
             return SendState.Error(PaymentError.ReceiverProtocolViolation)
           } else if (reply.destinationAmount.isLessThan(minDestinationAmount)) {
             log.warn(
-              'ending payment: receiver violated procotol. packet fulfilled below min exchange rate. delivered=%s minDestination=%s',
+              'ending payment: receiver violated protocol. packet fulfilled below min exchange rate. delivered=%s minDestination=%s',
               destinationAmount,
               minDestinationAmount
             )
@@ -255,7 +256,11 @@ export class PaymentSender extends StreamSender<PaymentProgress> {
           this.amountSent.isEqualTo(this.quote.maxSourceAmount) // Amount in flight is always 0 if this is true
         if (paidFixedSend) {
           log.debug('payment complete: paid fixed source amount.')
-          const payTps = this.getOrCreateCounter('interledgerjs_pay_complete_total', undefined)
+          //const payTps = this.getOrCreateCounter('interledgerjs_pay_complete_total', undefined)
+          const payTps = this.getOrCreateCounter(
+            'InterledgerJS:Pay:nextStateFixedSendTotal',
+            undefined
+          )
           if (payTps) {
             payTps.add(1, {
               source: 'ilp_pay',
@@ -271,7 +276,11 @@ export class PaymentSender extends StreamSender<PaymentProgress> {
           !this.sourceAmountInFlight.isPositive()
         if (paidFixedDelivery) {
           log.debug('payment complete: paid fixed destination amount.')
-          const payTps = this.getOrCreateCounter('interledgerjs_pay_complete_total', undefined)
+          //const payTps = this.getOrCreateCounter('interledgerjs_pay_complete_total', undefined)
+          const payTps = this.getOrCreateCounter(
+            'InterledgerJS:Pay:nextStateFixedDeliveryTotal',
+            undefined
+          )
           if (payTps) {
             payTps.add(1, {
               source: 'ilp_pay',
@@ -293,7 +302,11 @@ export class PaymentSender extends StreamSender<PaymentProgress> {
         }
 
         // Log the metrics for each payment:
-        const payTps = this.getOrCreateCounter('interledgerjs_pay_total', undefined)
+        //const payTps = this.getOrCreateCounter('interledgerjs_pay_total', undefined)
+        const payTps = this.getOrCreateCounter(
+          'InterledgerJS:Pay:nextStateDeliveryNotCompleteTotal',
+          undefined
+        )
         if (payTps) {
           payTps.add(1, {
             source: 'ilp_pay',

@@ -63,16 +63,23 @@ export abstract class StreamSender<T> {
   ) {
     const { destinationAddress, sharedSecret } = destinationDetails
 
+    const timerGenKeys = this.startTimer('InterledgerJS:Pay:StreamSender:generateKeys', {
+      description: 'Time to perform sending only.',
+    })
+
     const connectionId = sha256(Buffer.from(destinationAddress)).toString('hex').slice(0, 6)
     this.log = createLogger(`ilp-pay:${connectionId}`)
     this.counters = counters
     this.histograms = histograms
 
     this.sendRequest = generateKeys(plugin, sharedSecret)
+
+    timerGenKeys && timerGenKeys()
   }
 
   private trySending(): SendState<T> {
-    const timerSending = this.startTimer('interledgerjs_strictly_sending_time_ms', {
+    //const timerSending = this.startTimer('interledgerjs_strictly_sending_time_ms', {
+    const timerSending = this.startTimer('InterledgerJS:Pay:trySending', {
       description: 'Time to perform sending only.',
     })
     try {
@@ -103,7 +110,8 @@ export abstract class StreamSender<T> {
         const newState = state.applyReply(reply)
         return error ? SendState.Error(error) : newState
       })
-      const counterForTps = this.getOrCreateCounter('interledgerjs_sender_total', undefined)
+      //const counterForTps = this.getOrCreateCounter('interledgerjs_sender_total', undefined)
+      const counterForTps = this.getOrCreateCounter('InterledgerJS:Pay:trySendingTotal', undefined)
       if (counterForTps) {
         counterForTps.add(1, {
           source: this.SOURCE,
