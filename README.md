@@ -29,26 +29,20 @@
 
 The monorepo is set up to use lerna and pnpm workspaces. To get started run the following:
 
-1. `pnpm install` - pnpm will install the dependencies and do the necessary linking (no need to run `lerna bootstrap`).
-2. `pnpm build`
-3. `pnpm test` - This will run the tests in all the packages.
+1. `pnpm install` - `pnpm` will install the dependencies and handle the necessary linking automatically, eliminating the need to run `lerna bootstrap`.
+2. `pnpm build` - Runs the build process specified in the package.json file under the scripts section.
+3. `pnpm test` - This will execute the tests across all packages.
 
 ### Running script commands
 
 Script commands such as `test` and `lint` can be run from the root of the project by running:
 
 ```sh
-# Run tests for all packages
+# Run tests for all packages:
 pnpm test
 
-# Run tests for a specific module a package
-pnpm test --scope=<package-name>
-```
-
-Or in the package directory:
-
-```sh
-pnpm test
+# Run tests for a specific module a package (Example of filtering the [pay] package):
+pnpm --filter pay test
 ```
 
 If you are interested in contributing, please read the [contributing guidelines](./CONTRIBUTING.md).
